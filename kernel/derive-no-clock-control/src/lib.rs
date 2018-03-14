@@ -1,49 +1,58 @@
 #![recursion_limit = "128"]
 
 extern crate proc_macro;
-#[macro_use]
-extern crate quote;
 extern crate syn;
 
+#[macro_use]
+extern crate quote;
+
 use proc_macro::TokenStream;
+use quote::ToTokens;
+use syn::DeriveInput;
 
-#[proc_macro_derive(NoClockControlMMIOHardware)]
+// https://github.com/dtolnay/syn
+
+#[proc_macro_derive(NoPeripheralManagement, attributes(RegisterType))]
 pub fn no_clock_control_mmio_hardware(input: TokenStream) -> TokenStream {
-    // Get string of type definition
-    let s = input.to_string();
+    // Parse the input tokens into a syntax tree
+    let input: DeriveInput = syn::parse(input).unwrap();
 
-    // Parse the string of Rust code
-    let ast = syn::parse_derive_input(&s).unwrap();
+    let s = input.attrs.iter().find(|a| a.interpret_meta().map_or(false, |m| m.name() == "RegisterType"));
+    let ss = s.expect("Missing RegisterType. Add `#[RegisterType(TestRegisters)]` after deriving");
+    let meta = ss.interpret_meta().expect("RegisterType requires a value, like `#[RegisterType(TestRegisters)]`");
+    let reg_type_str = match meta {
+        syn::Meta::Word(_) => panic!("RegisterType requires a value, like `#[RegisterType(TestRegisters)]` (got `Word` type)"),
+        syn::Meta::List(meta_list) => meta_list.nested,
+        syn::Meta::NameValue(_) => panic!("RegisterType requires a value, like `#[RegisterType(TestRegisters)]` (got `NameValue` type)"),
+    };
+    let reg_type = reg_type_str.into_tokens();
 
     // Create the implementation
-    let gen = impl_no_clock_control_mmio_hardware(&ast);
-
-    // And return the generated code
-    gen.parse().unwrap()
-}
-
-fn impl_no_clock_control_mmio_hardware(ast: &syn::DeriveInput) -> quote::Tokens {
-    let name = &ast.ident;
-    quote! {
+    let name = &input.ident;
+    let expanded = quote! {
         // n.b. Need fully qualified paths o/w callee's need `use` imports
-        impl ::kernel::MMIOClockInterface<::kernel::NoClockControl> for #name {
+        impl ::kernel::common::peripherals::AutomaticPeripheralManagement<::kernel::NoClockControl> for #name {
+            type RegisterType = #reg_type;
+
+            fn get_registers(&self) -> &Self::RegisterType {
+                &*self.registers
+            }
+
             fn get_clock(&self) -> &::kernel::NoClockControl {
                 unsafe { &::kernel::NO_CLOCK_CONTROL }
             }
-        }
 
-        // n.b. Need fully qualified paths o/w callee's need `use` imports
-        impl<H> ::kernel::MMIOClockGuard<H, ::kernel::NoClockControl> for #name where
-            H: ::kernel::MMIOInterface<::kernel::NoClockControl>
-        {
-            fn before_mmio_access(&self,
+            fn before_peripheral_access(&self,
                                   _clock: &::kernel::NoClockControl,
-                                  _registers: &H::MMIORegisterType)
+                                  _registers: &Self::RegisterType)
             {}
-            fn after_mmio_access(&self,
+            fn after_peripheral_access(&self,
                                  _clock: &::kernel::NoClockControl,
-                                 _registers: &H::MMIORegisterType)
+                                 _registers: &Self::RegisterType)
             {}
         }
-    }
+    };
+
+    // And return the generated code
+    expanded.into()
 }
