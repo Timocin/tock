@@ -1,4 +1,4 @@
-//! Automatic Peripheral Management
+//! Peripheral Management
 //!
 //! Most peripherals are implemented as memory mapped I/O (MMIO).
 //! Intrinsically, this means that accessing a peripheral requires
@@ -40,7 +40,7 @@
 //!
 //! ```rust
 //! /// Teaching the kernel how to create PeripheralRegisters.
-//! impl AutomaticPeripheralManagement<pm::Clock> for PeripheralHardware {
+//! impl PeripheralManagement<pm::Clock> for PeripheralHardware {
 //!     type RegisterType = PeripheralRegisters;
 //!
 //!     fn get_registers(&self) -> &PeripheralRegisters {
@@ -69,7 +69,7 @@
 //!
 //! ```rust
 //! /// Teaching the kernel which clock controls SpiHw.
-//! impl AutomaticPeripheralManagement<pm::Clock> for SpiHw {
+//! impl PeripheralManagement<pm::Clock> for SpiHw {
 //!     fn get_clock(&self) -> &pm::Clock {
 //!         &pm::Clock::PBA(pm::PBAClock::SPI)
 //!     }
@@ -86,57 +86,14 @@
 //! }
 //! ```
 //!
-//! Some peripherals may not require any clock control. Such peripherals should
-//! derive `NoClockControlMMIOHardware`, like this:
-//!
-//! ```rust
-//! use kernel::common::VolatileCell;
-//! use kernel::{MMIOInterface, PeripheralManager, NoClockControl};
-//!
-//! /// The MMIO Structure.
-//! #[repr(C)]
-//! #[allow(dead_code)]
-//! pub struct TestRegisters {
-//!     control: VolatileCell<u32>,
-//!     interrupt_mask: VolatileCell<u32>,
-//! }
-//!
-//! /// The Tock object that holds all information for this peripheral.
-//! #[derive(NoClockControlMMIOHardware)]
-//! pub struct TestHw {
-//!     registers: StaticRef<TestRegisters>,
-//! }
-//!
-//! /// Teaching the kernel how to create TestRegisters.
-//! impl MMIOInterface<NoClockControl> for TestHw {
-//!     type MMIORegisterType = TestRegisters;
-//!
-//!     fn get_registers(&self) -> &TestRegisters {
-//!         &*self.registers
-//!     }
-//! }
-//!
-//! /// Mapping to actual hardware instance(s).
-//! const TEST_BASE_ADDR: StaticRef<TestRegisters> = StaticRef::new(0x40001000 as *const TestRegisters);
-//! pub static mut TEST0: TestHw = TestHw::new(TEST_BASE_ADDR);
-//!
-//! /// Methods this peripheral exports to the rest of the kernel.
-//! impl TestHw {
-//!     const fn new(base_addr: StaticRef<TestRegisters>) -> TestHw {
-//!         TestHw { registers: base_addr }
-//!     }
-//!
-//!     pub fn do_thing(&self) {
-//!         let peripheral = &PeripheralManager::new(self);
-//!         peripheral.registers.control.get();
-//!     }
-//! }
-//! ```
+//! Some peripherals may not require any clock control. Such peripherals can
+//! derive `NoPeripheralManagement`. See the derive-no-peripheral-control crate
+//! in the kernel folder for details.
 
 use ClockInterface;
 
 /// A structure encapsulating a peripheral should implement this trait.
-pub trait AutomaticPeripheralManagement<C>
+pub trait PeripheralManagement<C>
 where
     C: ClockInterface,
 {
@@ -164,7 +121,7 @@ where
 }
 
 /// Structures encapsulating periphal hardware (those implementing the
-/// AutomaticPeripheralManagement trait) should instantiate an instance of this
+/// PeripheralManagement trait) should instantiate an instance of this
 /// method to accesss memory mapped registers.
 ///
 /// ```rust
@@ -173,7 +130,7 @@ where
 /// ```
 pub struct PeripheralManager<'a, H, C>
 where
-    H: 'a + AutomaticPeripheralManagement<C>,
+    H: 'a + PeripheralManagement<C>,
     C: 'a + ClockInterface,
 {
     pub registers: &'a H::RegisterType,
@@ -183,7 +140,7 @@ where
 
 impl<'a, H, C> PeripheralManager<'a, H, C>
 where
-    H: 'a + AutomaticPeripheralManagement<C>,
+    H: 'a + PeripheralManagement<C>,
     C: 'a + ClockInterface,
 {
     pub fn new(peripheral_hardware: &'a H) -> PeripheralManager<'a, H, C> {
@@ -200,7 +157,7 @@ where
 
 impl<'a, H, C> Drop for PeripheralManager<'a, H, C>
 where
-    H: 'a + AutomaticPeripheralManagement<C>,
+    H: 'a + PeripheralManagement<C>,
     C: 'a + ClockInterface,
 {
     fn drop(&mut self) {

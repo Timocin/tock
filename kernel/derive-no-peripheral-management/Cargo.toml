@@ -1,5 +1,5 @@
 [package]
-name = "derive-no-clock-control"
+name = "derive-no-peripheral-management"
 version = "0.1.0"
 authors = ["Tock Project Developers <tock-dev@googlegroups.com>"]
 

@@ -1,5 +1,5 @@
-No Peripheral Control
-=====================
+No Peripheral Management
+========================
 
 Tock generally provides tooling to support managed control of peripherals.
 However, some peripherals may not require any support. These peripherals
