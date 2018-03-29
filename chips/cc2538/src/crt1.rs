@@ -41,7 +41,7 @@ unsafe extern "C" fn hard_fault_handler() {
 #[cfg_attr(rustfmt, rustfmt_skip)]
 // no_mangle Ensures that the symbol is kept until the final binary
 #[no_mangle]
-pub static BASE_VECTORS: [unsafe extern fn(); 50] = [
+pub static BASE_VECTORS: [unsafe extern fn(); 69] = [
     _estack,
     reset_handler,
     unhandled_interrupt, // NMI
@@ -93,7 +93,26 @@ pub static BASE_VECTORS: [unsafe extern fn(); 50] = [
     generic_isr, // AUX Comparator A
     generic_isr, // AUX ADC new sample or ADC DMA
     // done, ADC underflow, ADC overflow
-    generic_isr  // TRNG event
+    generic_isr,  // TRNG event
+    generic_isr,
+    generic_isr,
+    generic_isr,
+    generic_isr,
+    generic_isr,
+    generic_isr,
+    generic_isr,
+    generic_isr,
+    generic_isr,
+    generic_isr,
+    generic_isr,
+    generic_isr,
+    generic_isr,
+    generic_isr,
+    generic_isr,
+    generic_isr,
+    generic_isr,
+    generic_isr,
+    generic_isr
 ];
 
 #[link_section = ".vectors"]

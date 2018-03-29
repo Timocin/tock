@@ -21,4 +21,3 @@ cortexm3 = { path = "../../arch/cortex-m3" }
 capsules = { path = "../../capsules" }
 kernel = { path = "../../kernel" }
 cc2538 = { path = "../../chips/cc2538" }
-
